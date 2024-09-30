@@ -15,10 +15,9 @@ constant boringmetaevents = ([ //Everything here is considered uninteresting and
 	0x59: "Key sig",
 ]);
 
-void scan(string fn) {
-	werror("\n%s\n", fn);
+void augment(string midi, string text, string out) {
 	array(array(string|array(array(int|string)))) chunks;
-	if (catch {chunks = midilib->parsesmf(Stdio.read_file(fn));}) return;
+	if (catch {chunks = midilib->parsesmf(Stdio.read_file(midi));}) return;
 	foreach (chunks; int i; [string id, array chunk]) if (id == "MTrk") {
 		//TODO: Scan the chunk for either lyrics or text. If any lyrics found,
 		//ignore all text. Otherwise, if any text found after the start, use text.
@@ -50,10 +49,12 @@ void scan(string fn) {
 			//else werror("[%d:%d] %d ==>%{ %X%}\n", i, ev, data[0], data[1..]); //Log unknown events if there's anything weird to track down
 		}
 		string lyrics = have_lyrics ? "lyrics" : text_after_start ? "textty" : "silent";
-		werror("Track %2d [%s]%{ %d%}: %s\n", i, lyrics, label || "Unlabelled");
+		werror("Track %2d [%s]: %s\n", i, lyrics, label || "Unlabelled");
 	}
 }
 
 int main(int argc, array(string) argv) {
-	foreach (argv[1..], string arg) scan(arg);
+	//TODO: Allow elision of some file names, figure it out from context
+	if (argc < 4) exit(1, "USAGE: pike %s midi text output\n");
+	augment(argv[1], argv[2], argv[3]);
 }
