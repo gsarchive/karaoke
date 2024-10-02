@@ -106,8 +106,10 @@ void augment(string midi, string text, string out) {
 	}
 	if (sizeof(events)) {
 		events = ({({0, 255, 3, "Lyrics"})}) + events + ({({0, 255, 0x2F, ""})});
-		//Stdio.write_file(out, midilib->buildsmf(chunks + ({({"MTrk", events})})));
-		Stdio.write_file(out, midilib->buildsmf(({chunks[0]}) + ({({"MTrk", events})}) + chunks[1..]));
+		sscanf(chunks[0][1], "%2c%2c%2c", int typ, int trks, int timing);
+		chunks[0][1] = sprintf("%2c%2c%2c", typ, trks + 1, timing);
+		Stdio.write_file(out, midilib->buildsmf(chunks + ({({"MTrk", events})})));
+		//Stdio.write_file(out, midilib->buildsmf(({chunks[0]}) + ({({"MTrk", events})}) + chunks[1..]));
 		write("Saved to %s\n", out);
 	}
 }
