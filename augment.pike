@@ -31,7 +31,7 @@ void augment(string midi, string text, string out) {
 			//data == ({delay, command[, args...]})
 			pos += data[0];
 			int cmd = data[1];
-			if (cmd >= 0x90 && cmd <= 0x9F && data[2]) notes += ({pos});
+			if (cmd >= 0x90 && cmd <= 0x9F && data[3]) notes += ({pos});
 			else if (cmd == 255) {
 				//Meta events. Some are interesting.
 				int meta_type = data[2];
@@ -49,8 +49,9 @@ void augment(string midi, string text, string out) {
 			}
 			//else werror("[%d:%d] %d ==>%{ %X%}\n", i, ev, data[0], data[1..]); //Log unknown events if there's anything weird to track down
 		}
-		string lyrics = have_lyrics ? "lyrics" : text_after_start ? "textty" : "silent";
+		string lyrics = have_lyrics ? "lyrics" : text_after_start ? "text" : "wordless";
 		werror("Track %2d [%s]: %s\n", i, lyrics, label || "Unlabelled");
+		//if (sizeof(notes)) werror(" - %d notes starting at %d\n", sizeof(notes), notes[0]);
 		tracknotes[i] = notes;
 	}
 	//Okay. So. Let's have a look at the file. We will build a new chunk for the lyrics.
