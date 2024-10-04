@@ -95,15 +95,18 @@ void augment(string midi, string text, string out) {
 			continue;
 		}
 		if (line == "") continue; //TODO: Mark an end-of-paragraph on the previous lyric entry rather than end-of-line
-		foreach (line / " ", string word) {
-			foreach (word / "-", string syl) {
-				int p = nextpos();
-				events += ({({p - pos, 255, 5, replace(syl, "_", " ")})});
-				pos = p;
+		done: do {
+			foreach (line / " ", string word) {
+				foreach (word / "-", string syl) {
+					int p = nextpos();
+					if (!p) break done;
+					events += ({({p - pos, 255, 5, replace(syl, "_", " ")})});
+					pos = p;
+				}
+				events[-1][-1] += " ";
 			}
-			events[-1][-1] += " ";
-		}
-		events[-1][-1] = String.trim(events[-1][-1]) + "\n";
+			events[-1][-1] = String.trim(events[-1][-1]) + "\n";
+		} while (0);
 	}
 	if (sizeof(events)) {
 		events = ({({0, 255, 3, "Lyrics"})}) + events + ({({0, 255, 0x2F, ""})});
