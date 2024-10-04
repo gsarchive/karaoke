@@ -98,7 +98,7 @@ void augment(string midi, string text, string out) {
 		foreach (line / " ", string word) {
 			foreach (word / "-", string syl) {
 				int p = nextpos();
-				events += ({({p - pos, 255, 5, syl})});
+				events += ({({p - pos, 255, 5, replace(syl, "_", " ")})});
 				pos = p;
 			}
 			events[-1][-1] += " ";
