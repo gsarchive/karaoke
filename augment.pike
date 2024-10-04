@@ -117,6 +117,17 @@ void augment(string midi, string text, string out) {
 
 int main(int argc, array(string) argv) {
 	//TODO: Allow elision of some file names, figure it out from context
-	if (argc < 4) exit(1, "USAGE: pike %s midi text output\n");
-	augment(argv[1], argv[2], argv[3]);
+	mapping args = Arg.parse(argv);
+	string mididir = args->dir || args->d || ".";
+	string outdir = args->output || args->o || ".";
+	mididir = replace(mididir, "~", System.get_home()); //Not supporting "~user" notation
+	outdir = replace(outdir, "~", System.get_home());
+	if (!sizeof(args[Arg.REST])) exit(1, "USAGE: pike %s [-d=mididir] [-o=outdir] textfile\n");
+	foreach (args[Arg.REST], string fn) {
+		werror("## %s\n", fn);
+		if (has_suffix(fn, ".mid")) {augment(fn, "-", "-"); continue;} //Quick analysis of a MIDI file
+		string midi = mididir + "/" + replace(fn, ".txt", ".mid");
+		string out = outdir + "/" + replace(fn, ".txt", ".kar");
+		augment(midi, fn, out);
+	}
 }
