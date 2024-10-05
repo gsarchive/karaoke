@@ -77,6 +77,7 @@ void augment(string midi, string text, string out) {
 	}
 	array events = ({ });
 	foreach ((Stdio.read_file(text) || "") / "\n", string line) {
+		if (has_prefix(line, ";")) continue;
 		if (sscanf(line, "@track %s", string tracks) && tracks) {
 			active_tracks = (<>);
 			//Usage: "@track 3" or "@track 3,5,6" or "@track 4-7" etc
