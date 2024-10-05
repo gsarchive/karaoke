@@ -1,0 +1,49 @@
+@track 2-8
+ALICE:_"Not guil-ty" I de-clare,
+But let the Knave take care
+In fu-ture not to steal
+the tempt-ing tarts
+KING:_Not guil-ty, then I fear
+You can-not now, my dear,
+Be-head for steal-ing
+that bad Knave of Hearts.
+QUEEN:_Not guil-ty! Oh, it's shock-ing,
+Miss A-lice must be mock-ing,
+Don't tell me that the tarts them-selves
+ran off, and left the shelf!
+ALICE:_Yes, that's the view I've ta-ken,
+If your nerves, my dear, are sha-ken,
+I would ven-ture to ad-vise you
+just to ex-e-cute your-self.
+CHILDREN:_Yes, that's the view we've ta-ken,
+And if your nerves are sha-ken,
+We would ven-ture to ad-vise you
+just to ex-e-cute your-self.
+Yes, that's the view we've ta-ken,
+If your nerves, my dear, are sha-ken,
+We would ven-ture to ad-vise you
+just to ex-e-cute your-self.
+Yes, ex-e--cute your-self.
+
+; There's a small amount of counterpoint between the girls
+; and guys, so to simplify, we just track the sopranos.
+; Sorry guys, your "Not guilty" is lost here... you have others.
+@track 5
+ALL:_It's ve-ry hard u-pon the Queen of Hearts
+Who vowed the Knave stole tarts;-
+To find that Knave by ver-dict of one friend
+"Not guil-ty" in the end.
+Not guil-ty, not- guil-ty, not guil-ty- in the end.
+Not guil-ty, not guil-ty, not guil-ty in the end.
+It's ve-ry hard u-pon the Queen of Hearts
+Who vowed the Knave stole tarts;-
+To find that Knave by ver-dict of one friend
+"Not guil-ty" in the end.
+
+Not guil-ty we de-clare.
+But let the Knave take care,
+In fu-ture from the tarts to keep his hand.
+Not guil-ty! now we know
+Why these strange things are so
+And why our A-lice came to Won-der-land,
+Won-der-land, Why A-lice came- to- Won-der-land.
