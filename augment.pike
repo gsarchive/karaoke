@@ -76,6 +76,7 @@ void augment(string midi, string text, string out) {
 		return best;
 	}
 	array events = ({ });
+	int excess_syllables = 0;
 	foreach ((Stdio.read_file(text) || "") / "\n", string line) {
 		if (has_prefix(line, ";")) continue;
 		if (sscanf(line, "@track %s", string tracks) && tracks) {
@@ -96,18 +97,16 @@ void augment(string midi, string text, string out) {
 			continue;
 		}
 		if (line == "") continue; //TODO: Mark an end-of-paragraph on the previous lyric entry rather than end-of-line
-		done: do {
-			foreach (line / " ", string word) {
-				foreach (word / "-", string syl) {
-					int p = nextpos();
-					if (!p) break done;
-					events += ({({p - pos, 255, 5, replace(syl, "_", " ")})});
-					pos = p;
-				}
-				events[-1][-1] += " ";
+		foreach (line / " ", string word) {
+			foreach (word / "-", string syl) {
+				int p = nextpos();
+				if (!p) {++excess_syllables; continue;}
+				events += ({({p - pos, 255, 5, replace(syl, "_", " ")})});
+				pos = p;
 			}
-			events[-1][-1] = String.trim(events[-1][-1]) + "\n";
-		} while (0);
+			if (!excess_syllables) events[-1][-1] += " ";
+		}
+		if (!excess_syllables) events[-1][-1] = String.trim(events[-1][-1]) + "\n";
 	}
 	if (sizeof(events)) {
 		events = ({({0, 255, 3, "Lyrics"})}) + events + ({({0, 255, 0x2F, ""})});
@@ -116,6 +115,12 @@ void augment(string midi, string text, string out) {
 		Stdio.write_file(out, midilib->buildsmf(chunks + ({({"MTrk", events})})));
 		//Stdio.write_file(out, midilib->buildsmf(({chunks[0]}) + ({({"MTrk", events})}) + chunks[1..]));
 		write("Saved to %s\n", out);
+	}
+	if (excess_syllables) write("-- %d excess syllables with no notes to go with them --\n", excess_syllables);
+	else {
+		int excess_notes = 0;
+		while (nextpos()) ++excess_notes;
+		if (excess_notes) write("-- %d notes without lyrics --\n", excess_notes);
 	}
 }
 
