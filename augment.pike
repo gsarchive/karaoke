@@ -116,11 +116,11 @@ void augment(string midi, string text, string out) {
 		//Stdio.write_file(out, midilib->buildsmf(({chunks[0]}) + ({({"MTrk", events})}) + chunks[1..]));
 		write("Saved to %s\n", out);
 	}
-	if (excess_syllables) write("-- %d excess syllables with no notes to go with them --\n", excess_syllables);
+	if (excess_syllables) write("\x1b[1;31m-- %d excess syllables with no notes to go with them --\x1b[0m\n", excess_syllables);
 	else {
 		int excess_notes = 0;
 		while (nextpos()) ++excess_notes;
-		if (excess_notes) write("-- %d notes without lyrics --\n", excess_notes);
+		if (excess_notes) write("\x1b[1;34m-- %d notes without lyrics --\x1b[0m\n", excess_notes);
 	}
 }
 
