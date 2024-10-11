@@ -139,4 +139,20 @@ int main(int argc, array(string) argv) {
 		string out = outdir + "/" + replace(fn, ".txt", ".kar");
 		augment(midi, fn, out);
 	}
+	if (args->copy) {
+		//Copy in files from the mididir to the outdir if there's no corresponding output file
+		//Also purge any *.mid from outdir where there IS a corresponding *.kar.
+		multiset out = (multiset)get_dir(outdir);
+		foreach (sort(get_dir(mididir)), string mid) if (has_suffix(mid, ".mid")) {
+			string kar = mid[..<4] + ".kar";
+			if (out[kar] && out[mid]) {
+				write("Cleaning out %s\n", mid);
+				rm(outdir + "/" + mid);
+			}
+			if (!out[kar] && !out[mid]) {
+				write("Copying %s\n", mid);
+				Stdio.write_file(outdir + "/" + mid, Stdio.read_file(mididir + "/" + mid));
+			}
+		}
+	}
 }
