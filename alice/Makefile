@@ -3,4 +3,5 @@ build:
 
 publish: build
 	cp *.kar ../../live/british/alice/alice/kar/
+	rm ../../live/british/alice/alice/alice_karaoke.zip
 	zip ../../live/british/alice/alice/alice_karaoke.zip *.kar *.mid
