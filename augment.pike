@@ -132,11 +132,23 @@ int main(int argc, array(string) argv) {
 	mididir = replace(mididir, "~", System.get_home()); //Not supporting "~user" notation
 	outdir = replace(outdir, "~", System.get_home());
 	if (!sizeof(args[Arg.REST])) exit(1, "USAGE: pike %s [-d=mididir] [-o=outdir] textfile\n");
+	array midis = args->partial && filter(get_dir(mididir), has_suffix, ".mid");
 	foreach (args[Arg.REST], string fn) {
 		werror("## %s\n", fn);
 		if (has_suffix(fn, ".mid")) {augment(fn, "-", "-"); continue;} //Quick analysis of a MIDI file
 		string midi = mididir + "/" + replace(fn, ".txt", ".mid");
 		string out = outdir + "/" + replace(fn, ".txt", ".kar");
+		if (midis) {
+			//In partial mode, the text file name must only be contained within
+			//the MIDI file name, rather than being the whole thing.
+			array matches = filter(midis, has_value, fn - ".txt");
+			if (sizeof(matches) == 1) {
+				midi = mididir + "/" + matches[0];
+				out = outdir + "/" + replace(matches[0], ".mid", ".kar");
+			}
+			else if (!sizeof(matches)) write("\x1b[1;31m-- no matching MIDI file --\x1b[0m\n");
+			else write("\x1b[1;34m-- multiple matching MIDI files --\x1b[0m\n");
+		}
 		augment(midi, fn, out);
 	}
 	if (args->copy) {
