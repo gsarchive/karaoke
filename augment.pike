@@ -19,6 +19,7 @@ void augment(string midi, string text, string out) {
 	array(array(string|array(array(int|string)))) chunks;
 	if (catch {chunks = midilib->parsesmf(Stdio.read_file(midi));}) return;
 	array tracknotes = allocate(sizeof(chunks), ({ }));
+	array channelnotes = allocate(16, ({ }));
 	foreach (chunks; int i; [string id, array chunk]) if (id == "MTrk") {
 		//TODO: Scan the chunk for either lyrics or text. If any lyrics found,
 		//ignore all text. Otherwise, if any text found after the start, use text.
@@ -31,7 +32,7 @@ void augment(string midi, string text, string out) {
 			//data == ({delay, command[, args...]})
 			pos += data[0];
 			int cmd = data[1];
-			if (cmd >= 0x90 && cmd <= 0x9F && data[3]) notes += ({pos});
+			if (cmd >= 0x90 && cmd <= 0x9F && data[3]) {notes += ({pos}); channelnotes[cmd&15] += ({pos});}
 			else if (cmd == 255) {
 				//Meta events. Some are interesting.
 				int meta_type = data[2];
@@ -54,6 +55,11 @@ void augment(string midi, string text, string out) {
 		//if (sizeof(notes)) werror(" - %d notes starting at %d\n", sizeof(notes), notes[0]);
 		tracknotes[i] = notes;
 	}
+	//Dump channel usage if it's needed (usually uninteresting)
+	//foreach (channelnotes; int c; array notes) if (sizeof(notes)) werror("Channel %2d: %d notes\n", c + 1, sizeof(notes));
+	//Hack: "Channel" assignments are done by pretending there are sixteen additional chunks after the tracks.
+	int firstchannel = sizeof(tracknotes);
+	tracknotes += channelnotes;
 	//Okay. So. Let's have a look at the file. We will build a new chunk for the lyrics.
 	multiset active_tracks = (<>); int singletrack = 0;
 	int pos = 0;
@@ -81,13 +87,15 @@ void augment(string midi, string text, string out) {
 		if (has_prefix(line, ";")) continue;
 		if (sscanf(line, "@track %s", string tracks) && tracks) {
 			active_tracks = (<>);
+			int ofs = 0;
+			if (sscanf(tracks, "channel %s", tracks)) ofs = firstchannel - 1;
 			//Usage: "@track 3" or "@track 3,5,6" or "@track 4-7" etc
 			//Note that track 0 is not valid; chunk 0 is the MThd, not a track.
 			foreach (tracks / ",", string t) {
 				t = String.trim(t);
 				if (sscanf(t, "%d-%d", int start, int stop) && start && stop)
-					for (int i = start; i <= stop; ++i) active_tracks[i] = 1;
-				else if ((int)t) active_tracks[(int)t] = 1;
+					for (int i = start; i <= stop; ++i) active_tracks[i + ofs] = 1;
+				else if ((int)t) active_tracks[(int)t + ofs] = 1;
 			}
 			//The common case where there's only one active track has a fast path in nextpos.
 			singletrack = sizeof(active_tracks) == 1 && ((array)active_tracks)[0];
