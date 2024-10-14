@@ -43,6 +43,14 @@ void augment(string midi, string text, string out) {
 						if (pos > 0) text_after_start = 1;
 						else if (!label) label = data[3];
 						break;
+					case 0x58: {
+						//TODO: Figure out the number of MIDI clocks per bar
+						//Build up a map of bar numbers
+						//Allow lyrics to be aligned to a specific bar, eg "skip to bar 42"
+						//Should be less error-prone than counting hyphens in long sections.
+						[int nn, int dd, int cc, int bb] = (array)data[3];
+						werror("Time sig [%d] %d/%d, %d, %d\n", pos, nn, 1<<dd, cc, bb);
+					}
 					default:
 						if (!boringmetaevents[meta_type])
 							werror("[%d:%d] %d ==> Meta %X %O\n", i, ev, data[0], data[2], data[3]);
