@@ -9,6 +9,7 @@ mapping args; //Parsed version of argv[]
 
 constant boringmetaevents = ([ //Everything here is considered uninteresting and is silently kept.
 	0x02: "Copyright",
+	0x04: "Instrument",
 	0x21: "MIDI port",
 	0x2F: "End of track",
 	0x51: "Tempo",
@@ -30,11 +31,12 @@ void augment(string midi, string text, string out) {
 		int pos = 0;
 		string|zero label;
 		array notes = ({ });
+		multiset chunkchannels = (<>);
 		foreach (chunk; int ev; array data) {
 			//data == ({delay, command[, args...]})
 			pos += data[0];
 			int cmd = data[1];
-			if (cmd >= 0x90 && cmd <= 0x9F && data[3]) {notes += ({pos}); channelnotes[cmd&15] += ({pos});}
+			if (cmd >= 0x90 && cmd <= 0x9F && data[3]) {notes += ({pos}); channelnotes[cmd&15] += ({pos}); chunkchannels[1 + (cmd&15)] = 1;}
 			else if (cmd == 255) {
 				//Meta events. Some are interesting.
 				int meta_type = data[2];
@@ -61,7 +63,7 @@ void augment(string midi, string text, string out) {
 			//else werror("[%d:%d] %d ==>%{ %X%}\n", i, ev, data[0], data[1..]); //Log unknown events if there's anything weird to track down
 		}
 		string lyrics = have_lyrics ? "lyrics" : text_after_start ? "text" : "wordless";
-		werror("Track %2d [%s]: %s\n", i, lyrics, label || "Unlabelled");
+		werror("Track %2d [%s]: %s (c%{ %d%})\n", i, lyrics, label || "Unlabelled", sort((array)chunkchannels));
 		//if (sizeof(notes)) werror(" - %d notes starting at %d\n", sizeof(notes), notes[0]);
 		tracknotes[i] = notes;
 	}
@@ -115,12 +117,18 @@ void augment(string midi, string text, string out) {
 		else select_tracks(tracks, 0);
 		int lnext = 0, lstop = sizeof(lyrics);
 		string ws = ""; //Move whitespace after any hyphens
+		int linecount = 0;
 		while (int p = nextpos()) {
 			int done = 0;
 			while (lnext < lstop && lyrics[lnext][0] <= p) {
 				done = 1;
 				string syl = lyrics[lnext++][1];
-				if (ws == " " && syl != "" && lower_case(syl) != syl) ws = "\n"; //Hack: Split into paragraphs automatically
+				//Hack: Split into paragraphs automatically. After we've seen at least a few
+				//syllables, the next syllable that starts with a capital letter (or includes
+				//one - for example, "[Chorus]") will be put onto its own line. TODO: Only do
+				//this if there are no actual newlines in the lyrics.
+				if (ws == " " && syl != "" && lower_case(syl) != syl && linecount >= 5) ws = "\n";
+				if (ws == "\n") linecount = 0; else ++linecount;
 				write("%s", ws); ws = "";
 				//Any trailing whitespace - and yes, in MIDI Karaoke, that includes slash and backslash -
 				//gets moved after any hyphens. Also it won't get turned into an underscore.
