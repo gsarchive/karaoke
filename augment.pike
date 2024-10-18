@@ -5,6 +5,7 @@ The lyrics file consists of lines of text and directives specifying either the t
 to be followed.
 */
 object midilib = (object)"patchpatch.pike"; //If not found, copy or symlink from Rosuav's shed
+mapping args; //Parsed version of argv[]
 
 constant boringmetaevents = ([ //Everything here is considered uninteresting and is silently kept.
 	0x02: "Copyright",
@@ -20,6 +21,7 @@ void augment(string midi, string text, string out) {
 	if (catch {chunks = midilib->parsesmf(Stdio.read_file(midi));}) return;
 	array tracknotes = allocate(sizeof(chunks), ({ }));
 	array channelnotes = allocate(16, ({ }));
+	array lyrics = ({ });
 	foreach (chunks; int i; [string id, array chunk]) if (id == "MTrk") {
 		//TODO: Scan the chunk for either lyrics or text. If any lyrics found,
 		//ignore all text. Otherwise, if any text found after the start, use text.
@@ -38,9 +40,9 @@ void augment(string midi, string text, string out) {
 				int meta_type = data[2];
 				switch (meta_type) {
 					case 3: label = data[3]; break;
-					case 5: if (sizeof(String.trim(data[3]))) have_lyrics = 1; break;
+					case 5: if (sizeof(String.trim(data[3]))) {have_lyrics = 1; lyrics += ({({pos, data[3]})});} break;
 					case 1:
-						if (pos > 0) text_after_start = 1;
+						if (pos > 0) {text_after_start = 1; lyrics += ({({pos, data[3]})});}
 						else if (!label) label = data[3];
 						break;
 					case 0x58: {
@@ -89,27 +91,56 @@ void augment(string midi, string text, string out) {
 			while (next[t] < stop[t] && tracknotes[t][next[t]] <= best) ++next[t];
 		return best;
 	}
+	void select_tracks(string tracks, int(1bit) by_channel) {
+		int ofs = by_channel && firstchannel - 1;
+		active_tracks = (<>);
+		//Usage: "@track 3" or "@track 3,5,6" or "@track 4-7" etc
+		//Note that track 0 is not valid; chunk 0 is the MThd, not a track.
+		foreach (tracks / ",", string t) {
+			t = String.trim(t);
+			if (sscanf(t, "%d-%d", int start, int stop) && start && stop)
+				for (int i = start; i <= stop; ++i) active_tracks[i + ofs] = 1;
+			else if ((int)t) active_tracks[(int)t + ofs] = 1;
+		}
+		//The common case where there's only one active track has a fast path in nextpos.
+		singletrack = sizeof(active_tracks) == 1 && ((array)active_tracks)[0];
+		//Skip past any note positions that we're already beyond
+		foreach (active_tracks; int t;)
+			while (next[t] < stop[t] && tracknotes[t][next[t]] <= pos) ++next[t];
+	}
+	if (string tracks = args->extract) {
+		//Usage: --extract=2-3 equivalent to "@track 2-3" in reverse
+		if (sscanf(tracks, "c%s", tracks)) select_tracks(tracks, 1);
+		else select_tracks(tracks, 0);
+		int lnext = 0, lstop = sizeof(lyrics);
+		string ws = ""; //Move whitespace after any hyphens
+		while (int p = nextpos()) {
+			int done = 0;
+			while (lnext < lstop && lyrics[lnext][0] <= p) {
+				done = 1;
+				string syl = lyrics[lnext++][1];
+				if (ws == " " && syl != "" && lower_case(syl) != syl) ws = "\n"; //Hack: Split into paragraphs automatically
+				write("%s", ws); ws = "";
+				//Any trailing whitespace - and yes, in MIDI Karaoke, that includes slash and backslash -
+				//gets moved after any hyphens. Also it won't get turned into an underscore.
+				if (syl != "" && has_value(" \r\n\\/", syl[-1])) {ws = syl[<0..]; syl = syl[..<1];}
+				//Any embedded spaces or hyphens need to be replaced.
+				syl = replace(syl, ([" ": "_", "-": "\u2010"])); //The distinction between U+2010 HYPHEN and U+002D HYPHEN-MINUS is easy to lose, but may be sufficient.
+				write("%s", string_to_utf8(syl));
+			}
+			if (ws == "" || !done) write("-");
+		}
+		while (lnext < lstop) write("%s", lyrics[lnext++][1]);
+		write("\n");
+		return;
+	}
 	array events = ({ });
 	int excess_syllables = 0;
 	foreach ((Stdio.read_file(text) || "") / "\n", string line) {
 		if (has_prefix(line, ";")) continue;
 		if (sscanf(line, "@track %s", string tracks) && tracks) {
-			active_tracks = (<>);
-			int ofs = 0;
-			if (sscanf(tracks, "channel %s", tracks)) ofs = firstchannel - 1;
-			//Usage: "@track 3" or "@track 3,5,6" or "@track 4-7" etc
-			//Note that track 0 is not valid; chunk 0 is the MThd, not a track.
-			foreach (tracks / ",", string t) {
-				t = String.trim(t);
-				if (sscanf(t, "%d-%d", int start, int stop) && start && stop)
-					for (int i = start; i <= stop; ++i) active_tracks[i + ofs] = 1;
-				else if ((int)t) active_tracks[(int)t + ofs] = 1;
-			}
-			//The common case where there's only one active track has a fast path in nextpos.
-			singletrack = sizeof(active_tracks) == 1 && ((array)active_tracks)[0];
-			//Skip past any note positions that we're already beyond
-			foreach (active_tracks; int t;)
-				while (next[t] < stop[t] && tracknotes[t][next[t]] <= pos) ++next[t];
+			if (sscanf(tracks, "channel %s", tracks)) select_tracks(tracks, 1);
+			else select_tracks(tracks, 0);
 			continue;
 		}
 		if (line == "") continue; //TODO: Mark an end-of-paragraph on the previous lyric entry rather than end-of-line
@@ -117,7 +148,7 @@ void augment(string midi, string text, string out) {
 			foreach (word / "-", string syl) {
 				int p = nextpos();
 				if (!p) {++excess_syllables; continue;}
-				events += ({({p - pos, 255, 5, replace(syl, "_", " ")})});
+				events += ({({p - pos, 255, 5, replace(replace(syl, "\u2010", "-"), "_", " ")})});
 				pos = p;
 			}
 			if (!excess_syllables) events[-1][-1] += " ";
@@ -142,7 +173,7 @@ void augment(string midi, string text, string out) {
 
 int main(int argc, array(string) argv) {
 	//TODO: Allow elision of some file names, figure it out from context
-	mapping args = Arg.parse(argv);
+	args = Arg.parse(argv);
 	string mididir = args->dir || args->d || ".";
 	string outdir = args->output || args->o || ".";
 	mididir = replace(mididir, "~", System.get_home()); //Not supporting "~user" notation
