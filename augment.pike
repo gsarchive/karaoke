@@ -130,13 +130,13 @@ void augment(string midi, string text, string out) {
 		chunks[0][1] = sprintf("%2c%2c%2c", typ, trks + 1, timing);
 		Stdio.write_file(out, midilib->buildsmf(chunks + ({({"MTrk", events})})));
 		//Stdio.write_file(out, midilib->buildsmf(({chunks[0]}) + ({({"MTrk", events})}) + chunks[1..]));
-		write("Saved to %s\n", out);
+		werror("Saved to %s\n", out);
 	}
-	if (excess_syllables) write("\x1b[1;31m-- %d excess syllables with no notes to go with them --\x1b[0m\n", excess_syllables);
+	if (excess_syllables) werror("\x1b[1;31m-- %d excess syllables with no notes to go with them --\x1b[0m\n", excess_syllables);
 	else {
 		int excess_notes = 0;
 		while (nextpos()) ++excess_notes;
-		if (excess_notes) write("\x1b[1;34m-- %d notes without lyrics --\x1b[0m\n", excess_notes);
+		if (excess_notes) werror("\x1b[1;34m-- %d notes without lyrics --\x1b[0m\n", excess_notes);
 	}
 }
 
@@ -162,8 +162,8 @@ int main(int argc, array(string) argv) {
 				midi = mididir + "/" + matches[0];
 				out = outdir + "/" + replace(matches[0], ".mid", ".kar");
 			}
-			else if (!sizeof(matches)) write("\x1b[1;31m-- no matching MIDI file --\x1b[0m\n");
-			else write("\x1b[1;34m-- multiple matching MIDI files --\x1b[0m\n");
+			else if (!sizeof(matches)) werror("\x1b[1;31m-- no matching MIDI file --\x1b[0m\n");
+			else werror("\x1b[1;34m-- multiple matching MIDI files --\x1b[0m\n");
 		}
 		augment(midi, fn, out);
 	}
@@ -174,11 +174,11 @@ int main(int argc, array(string) argv) {
 		foreach (sort(get_dir(mididir)), string mid) if (has_suffix(mid, ".mid")) {
 			string kar = mid[..<4] + ".kar";
 			if (out[kar] && out[mid]) {
-				write("Cleaning out %s\n", mid);
+				werror("Cleaning out %s\n", mid);
 				rm(outdir + "/" + mid);
 			}
 			if (!out[kar] && !out[mid]) {
-				write("Copying %s\n", mid);
+				werror("Copying %s\n", mid);
 				Stdio.write_file(outdir + "/" + mid, Stdio.read_file(mididir + "/" + mid));
 			}
 		}
