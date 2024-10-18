@@ -73,6 +73,7 @@ void augment(string midi, string text, string out) {
 	//Okay. So. Let's have a look at the file. We will build a new chunk for the lyrics.
 	multiset active_tracks = (<>); int singletrack = 0;
 	int pos = 0;
+	int minnote = 0;
 	//Next and Last indices within each track. So long as next[n] < stop[n], you can draw content from track n.
 	array next = allocate(sizeof(tracknotes)), stop = sizeof(tracknotes[*]);
 	int nextpos() { //Return the next position of any note-on in any active track, or 0 if none.
@@ -85,10 +86,10 @@ void augment(string midi, string text, string out) {
 		//Advance past everything at this point. That isn't necessarily just the one
 		//track that we found this in; if other tracks have notes at precisely the same
 		//point, we skip past those too. (Should there be a small buffer zone or just
-		//equality? Using simple equality for the moment.)
+		//equality? If you want a buffer zone, set minnote to a nonzero value.)
 		if (best <= pos) return 0;
 		foreach (active_tracks; int t;)
-			while (next[t] < stop[t] && tracknotes[t][next[t]] <= best) ++next[t];
+			while (next[t] < stop[t] && tracknotes[t][next[t]] <= best + minnote) ++next[t];
 		return best;
 	}
 	void select_tracks(string tracks, int(1bit) by_channel) {
@@ -136,18 +137,25 @@ void augment(string midi, string text, string out) {
 	}
 	array events = ({ });
 	int excess_syllables = 0;
-	foreach ((Stdio.read_file(text) || "") / "\n", string line) {
+	mapping gaps = ([]);
+	foreach ((utf8_to_string(Stdio.read_file(text)) || "") / "\n", string line) {
 		if (has_prefix(line, ";")) continue;
 		if (sscanf(line, "@track %s", string tracks) && tracks) {
 			if (sscanf(tracks, "channel %s", tracks)) select_tracks(tracks, 1);
 			else select_tracks(tracks, 0);
 			continue;
 		}
+		if (sscanf(line, "@minnote %d", minnote)) continue; //Note that "@minnote 0" is valid, and will reset the limit to its default of zero.
 		if (line == "") continue; //TODO: Mark an end-of-paragraph on the previous lyric entry rather than end-of-line
+		int shortest = 1<<30, longest = 0;
+		int first = 1;
 		foreach (line / " ", string word) {
 			foreach (word / "-", string syl) {
 				int p = nextpos();
 				if (!p) {++excess_syllables; continue;}
+				gaps[p - pos]++;
+				if (!first) {shortest = min(shortest, p - pos); longest = max(longest, p - pos);}
+				first = 0;
 				//TODO: Suppress empty lyric entries?
 				events += ({({p - pos, 255, 5, replace(replace(syl, "\u2010", "-"), "_", " ")})});
 				pos = p;
@@ -155,7 +163,9 @@ void augment(string midi, string text, string out) {
 			if (!excess_syllables) events[-1][-1] += " ";
 		}
 		if (!excess_syllables) events[-1][-1] = String.trim(events[-1][-1]) + "\n";
+		//werror("Gap %3d - %3d %O\n", shortest, longest, line);
 	}
+	if (args->gaps) werror("Lyric gap heatmap (clocks:count): %O\n", gaps);
 	if (sizeof(events)) {
 		events = ({({0, 255, 3, "Lyrics"})}) + events + ({({0, 255, 0x2F, ""})});
 		sscanf(chunks[0][1], "%2c%2c%2c", int typ, int trks, int timing);
