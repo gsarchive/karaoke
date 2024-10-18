@@ -148,6 +148,7 @@ void augment(string midi, string text, string out) {
 			foreach (word / "-", string syl) {
 				int p = nextpos();
 				if (!p) {++excess_syllables; continue;}
+				//TODO: Suppress empty lyric entries?
 				events += ({({p - pos, 255, 5, replace(replace(syl, "\u2010", "-"), "_", " ")})});
 				pos = p;
 			}
