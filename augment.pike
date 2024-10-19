@@ -147,7 +147,7 @@ void augment(string midi, string text, string out) {
 	array events = ({ });
 	int excess_syllables = 0;
 	mapping gaps = ([]);
-	foreach ((utf8_to_string(Stdio.read_file(text)) || "") / "\n", string line) {
+	foreach ((utf8_to_string(Stdio.read_file(text) || "")) / "\n", string line) {
 		if (has_prefix(line, ";")) continue;
 		if (sscanf(line, "@track %s", string tracks) && tracks) {
 			if (sscanf(tracks, "channel %s", tracks)) select_tracks(tracks, 1);
