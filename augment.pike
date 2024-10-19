@@ -113,8 +113,9 @@ void augment(string midi, string text, string out) {
 	}
 	if (string tracks = args->extract) {
 		//Usage: --extract=2-3 equivalent to "@track 2-3" in reverse
-		if (sscanf(tracks, "c%s", tracks)) select_tracks(tracks, 1);
-		else select_tracks(tracks, 0);
+		if (intp(tracks)) tracks = "";
+		if (sscanf(tracks, "c%s", tracks)) {write("@track channel %s\n", tracks); select_tracks(tracks, 1);}
+		else {write("@track %s\n", tracks); select_tracks(tracks, 0);}
 		int lnext = 0, lstop = sizeof(lyrics);
 		string ws = ""; //Move whitespace after any hyphens
 		int linecount = 0;
