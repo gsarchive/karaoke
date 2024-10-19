@@ -1,5 +1,5 @@
 build:
-	pike ../augment.pike -d=~/Music/kar/Patience --copy *.txt
+	pike ../augment.pike -d=~/Music/kar/Patience *.txt
 
 publish: build
 	rm ../../live/patience/webop/midi/patience_orch.zip
