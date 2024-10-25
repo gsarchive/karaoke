@@ -23,6 +23,9 @@ void augment(string midi, string text, string out) {
 	array tracknotes = allocate(sizeof(chunks), ({ }));
 	array channelnotes = allocate(16, ({ }));
 	array lyrics = ({ });
+	sscanf(chunks[0][1], "%2c%2c%2c", int miditype, int chunkcount, int ppqn);
+	int bar_length = ppqn * 4; //Default is 4/4 time, 24 clocks per quarter note
+	array bar_starts = ({0});
 	foreach (chunks; int i; [string id, array chunk]) if (id == "MTrk") {
 		//TODO: Scan the chunk for either lyrics or text. If any lyrics found,
 		//ignore all text. Otherwise, if any text found after the start, use text.
@@ -35,6 +38,7 @@ void augment(string midi, string text, string out) {
 		foreach (chunk; int ev; array data) {
 			//data == ({delay, command[, args...]})
 			pos += data[0];
+			while (pos >= bar_starts[-1] + bar_length) bar_starts += ({bar_starts[-1] + bar_length});
 			int cmd = data[1];
 			if (cmd >= 0x90 && cmd <= 0x9F && data[3]) {notes += ({pos}); channelnotes[cmd&15] += ({pos}); chunkchannels[1 + (cmd&15)] = 1;}
 			else if (cmd == 255) {
@@ -53,7 +57,22 @@ void augment(string midi, string text, string out) {
 						//Allow lyrics to be aligned to a specific bar, eg "skip to bar 42"
 						//Should be less error-prone than counting hyphens in long sections.
 						[int nn, int dd, int cc, int bb] = (array)data[3];
-						werror("Time sig [%d] %d/%d, %d, %d\n", pos, nn, 1<<dd, cc, bb);
+						int barlen = ((ppqn / bb) << (5 - dd)) * nn;
+						if (int residue = pos - bar_starts[-1]) {
+							//If there's a time sig part way through a bar, predict the next
+							//bar position by presuming that we are proportionally through
+							//the current bar. That is, if we were 25% through, count 75%
+							//of the new bar length and mark the next bar there. This won't
+							//work if there are TWO time sigs inside the same bar, but...
+							//don't do that. Actually, just don't have a time sig within a
+							//bar anyway. It's not a normal thing.
+							int rest = barlen * (bar_length - residue) / bar_length;
+							werror("\e[1;33mTime sig part way in (%d/%d), adding %d/%d for rest of bar\e[0m\n",
+								residue, bar_length, rest, barlen);
+							bar_starts += ({pos + rest});
+						}
+						bar_length = barlen;
+						//werror("Time sig [%d] %d/%d, %d, %d, ppqn %d \e[1;35mBar length: %d\e[0m\n", pos, nn, 1<<dd, cc, bb, ppqn, bar_length);
 					}
 					default:
 						if (!boringmetaevents[meta_type])
@@ -119,6 +138,7 @@ void augment(string midi, string text, string out) {
 		int lnext = 0, lstop = sizeof(lyrics);
 		string ws = ""; //Move whitespace after any hyphens
 		int linecount = 0;
+		//if (sizeof(lyrics)) werror("Lyrics start %d\n", lyrics[0][0]);
 		while (int p = nextpos()) {
 			int done = 0;
 			while (lnext < lstop && lyrics[lnext][0] <= p) {
