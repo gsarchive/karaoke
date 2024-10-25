@@ -25,7 +25,7 @@ void augment(string midi, string text, string out) {
 	array lyrics = ({ });
 	sscanf(chunks[0][1], "%2c%2c%2c", int miditype, int chunkcount, int ppqn);
 	int bar_length = ppqn * 4; //Default is 4/4 time, 24 clocks per quarter note
-	array bar_starts = ({0});
+	array bar_starts = ({0, 0}); //Allow 1-based indexing since that's how humans think (bar_starts[1] is the position where bar #1 starts)
 	foreach (chunks; int i; [string id, array chunk]) if (id == "MTrk") {
 		//TODO: Scan the chunk for either lyrics or text. If any lyrics found,
 		//ignore all text. Otherwise, if any text found after the start, use text.
@@ -97,6 +97,10 @@ void augment(string midi, string text, string out) {
 	int minnote = 0;
 	//Next and Last indices within each track. So long as next[n] < stop[n], you can draw content from track n.
 	array next = allocate(sizeof(tracknotes)), stop = sizeof(tracknotes[*]);
+	void skipto(int p) {
+		foreach (active_tracks; int t;)
+			while (next[t] < stop[t] && tracknotes[t][next[t]] <= p) ++next[t];
+	}
 	int nextpos() { //Return the next position of any note-on in any active track, or 0 if none.
 		if (singletrack) return next[singletrack] < stop[singletrack] && tracknotes[singletrack][next[singletrack]++];
 		//Scan multiple tracks, find the earliest, use it.
@@ -109,8 +113,7 @@ void augment(string midi, string text, string out) {
 		//point, we skip past those too. (Should there be a small buffer zone or just
 		//equality? If you want a buffer zone, set minnote to a nonzero value.)
 		if (best <= pos) return 0;
-		foreach (active_tracks; int t;)
-			while (next[t] < stop[t] && tracknotes[t][next[t]] <= best + minnote) ++next[t];
+		skipto(best + minnote);
 		return best;
 	}
 	void select_tracks(string tracks, int(1bit) by_channel) {
@@ -127,8 +130,7 @@ void augment(string midi, string text, string out) {
 		//The common case where there's only one active track has a fast path in nextpos.
 		singletrack = sizeof(active_tracks) == 1 && ((array)active_tracks)[0];
 		//Skip past any note positions that we're already beyond
-		foreach (active_tracks; int t;)
-			while (next[t] < stop[t] && tracknotes[t][next[t]] <= pos) ++next[t];
+		skipto(pos);
 	}
 	if (string tracks = args->extract) {
 		//Usage: --extract=2-3 equivalent to "@track 2-3" in reverse
@@ -180,6 +182,13 @@ void augment(string midi, string text, string out) {
 		int first = 1;
 		foreach (line / " ", string word) {
 			foreach (word / "-", string syl) {
+				if (sscanf(syl, "{%d}", int bar)) {
+					//Skip to bar N. If this is followed by a hyphen,
+					//we won't add a space yet; otherwise, the next word will
+					//start at the start of bar N.
+					skipto(bar_starts[bar] - 1); //Skip to just before the bar starts, so the next lyric entry takes the bar start
+					continue;
+				}
 				int p = nextpos();
 				if (!p) {++excess_syllables; continue;}
 				gaps[p - pos]++;
