@@ -229,6 +229,7 @@ int main(int argc, array(string) argv) {
 	outdir = replace(outdir, "~", System.get_home());
 	if (!sizeof(args[Arg.REST])) exit(1, "USAGE: pike %s [-d=mididir] [-o=outdir] textfile\n");
 	array midis = args->partial && filter(get_dir(mididir), has_suffix, ".mid");
+	mapping files = ([]);
 	foreach (args[Arg.REST], string fn) {
 		werror("## %s\n", fn);
 		if (has_suffix(fn, ".mid")) {augment(fn, "-", "-"); continue;} //Quick analysis of a MIDI file
@@ -245,6 +246,7 @@ int main(int argc, array(string) argv) {
 			else if (!sizeof(matches)) werror("\x1b[1;31m-- no matching MIDI file --\x1b[0m\n");
 			else werror("\x1b[1;34m-- multiple matching MIDI files --\x1b[0m\n");
 		}
+		files[fn] = ({midi, out});
 		augment(midi, fn, out);
 	}
 	if (args->copy) {
@@ -262,5 +264,17 @@ int main(int argc, array(string) argv) {
 				Stdio.write_file(outdir + "/" + mid, Stdio.read_file(mididir + "/" + mid));
 			}
 		}
+	}
+	if (args->watch) {
+		//Note that this will not watch for new files, since that would require that we do our own globbing.
+		//It just monitors changes to the files that it already processed.
+		object inot = System.Inotify.Instance();
+		inot->add_watch(indices(files)[*], System.Inotify.IN_CLOSE_WRITE) {
+			[int event, int cookie, string path] = __ARGS__;
+			if (!files[path]) return;
+			[string midi, string out] = files[path];
+			augment(midi, path, out);
+		};
+		return -1;
 	}
 }
