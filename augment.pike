@@ -182,10 +182,31 @@ void augment(string midi, string text, string out) {
 		int first = 1;
 		foreach (line / " ", string word) {
 			foreach (word / "-", string syl) {
-				if (sscanf(syl, "{%d}", int bar)) {
+				if (sscanf(syl, "{%d%[<]}", int bar, string allbut)) {
 					//Skip to bar N. If this is followed by a hyphen,
 					//we won't add a space yet; otherwise, the next word will
 					//start at the start of bar N.
+					//Add one or more "<" to leave notes behind - currently works only in single-track mode.
+					//To expand it to work more flexibly, we'd need to recreate the nextpos() logic, but
+					//without actually advancing next[] in any track.
+					if (sizeof(allbut)) {
+						if (!singletrack) error("{bar<} usage only valid in singletrack mode for now");
+						//Quick check: If we were to skip to the start of that bar, would we run past
+						//the end of this track?
+						if (bar_starts[bar] >= tracknotes[singletrack][stop[singletrack] - 1]) error("Can't skip to that bar");
+						//Okay. So now we scan to that point, retaining the last N positions.
+						int n = next[singletrack];
+						array pos = ({ });
+						array tn = tracknotes[singletrack];
+						for (int i = 0; i < sizeof(allbut); ++i) pos += ({tn[n++]});
+						while (tn[n] < bar_starts[bar]) pos = pos[..<1] + ({tn[n++]});
+						//We now have N positions recorded. The next position after this (tn[n]) is the
+						//first note after the bar line, and pos[] contains the N positions just prior
+						//to it. Which means, the position N notes prior is the first thing in the array.
+						//So we can skip to just before that note starts, as per the logic of skipping to bar.
+						skipto(pos[0] - 1);
+						continue;
+					}
 					skipto(bar_starts[bar] - 1); //Skip to just before the bar starts, so the next lyric entry takes the bar start
 					continue;
 				}
