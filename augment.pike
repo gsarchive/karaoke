@@ -204,7 +204,7 @@ void augment(string midi, string text, string out, int(1bit)|void compare) {
 						array pos = ({ });
 						array tn = tracknotes[singletrack];
 						for (int i = 0; i < sizeof(allbut); ++i) pos += ({tn[n++]});
-						while (tn[n] < bar_starts[bar]) pos = pos[..<1] + ({tn[n++]});
+						while (tn[n] < bar_starts[bar]) pos = pos[1..] + ({tn[n++]});
 						//We now have N positions recorded. The next position after this (tn[n]) is the
 						//first note after the bar line, and pos[] contains the N positions just prior
 						//to it. Which means, the position N notes prior is the first thing in the array.
