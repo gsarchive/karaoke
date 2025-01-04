@@ -17,7 +17,7 @@ constant boringmetaevents = ([ //Everything here is considered uninteresting and
 	0x59: "Key sig",
 ]);
 
-void augment(string midi, string text, string out) {
+void augment(string midi, string text, string out, int(1bit)|void compare) {
 	array(array(string|array(array(int|string)))) chunks;
 	if (catch {chunks = midilib->parsesmf(Stdio.read_file(midi));}) return;
 	array tracknotes = allocate(sizeof(chunks), ({ }));
@@ -26,6 +26,7 @@ void augment(string midi, string text, string out) {
 	sscanf(chunks[0][1], "%2c%2c%2c", int miditype, int chunkcount, int ppqn);
 	int bar_length = ppqn * 4; //Default is 4/4 time, 24 clocks per quarter note
 	array bar_starts = ({0, 0}); //Allow 1-based indexing since that's how humans think (bar_starts[1] is the position where bar #1 starts)
+	mapping channelchunks = ([]);
 	foreach (chunks; int i; [string id, array chunk]) if (id == "MTrk") {
 		//TODO: Scan the chunk for either lyrics or text. If any lyrics found,
 		//ignore all text. Otherwise, if any text found after the start, use text.
@@ -85,6 +86,7 @@ void augment(string midi, string text, string out) {
 		werror("Track %2d [%s]: %s (c%{ %d%})\n", i, lyrics, label || "Unlabelled", sort((array)chunkchannels));
 		//if (sizeof(notes)) werror(" - %d notes starting at %d\n", sizeof(notes), notes[0]);
 		tracknotes[i] = notes;
+		foreach (chunkchannels; int chan;) channelchunks[chan] |= (<i>);
 	}
 	//Dump channel usage if it's needed (usually uninteresting)
 	//foreach (channelnotes; int c; array notes) if (sizeof(notes)) werror("Channel %2d: %d notes\n", c + 1, sizeof(notes));
@@ -93,6 +95,7 @@ void augment(string midi, string text, string out) {
 	tracknotes += channelnotes;
 	//Okay. So. Let's have a look at the file. We will build a new chunk for the lyrics.
 	multiset active_tracks = (<>); int singletrack = 0;
+	multiset all_active_tracks = (<>); //Every track that's ever been active
 	int pos = 0;
 	int minnote = 0;
 	//Next and Last indices within each track. So long as next[n] < stop[n], you can draw content from track n.
@@ -127,6 +130,8 @@ void augment(string midi, string text, string out) {
 				for (int i = start; i <= stop; ++i) active_tracks[i + ofs] = 1;
 			else if ((int)t) active_tracks[(int)t + ofs] = 1;
 		}
+		if (by_channel) foreach (active_tracks; int t;) all_active_tracks |= channelchunks[t - ofs];
+		else all_active_tracks |= active_tracks;
 		//The common case where there's only one active track has a fast path in nextpos.
 		singletrack = sizeof(active_tracks) == 1 && ((array)active_tracks)[0];
 		//Skip past any note positions that we're already beyond
@@ -229,7 +234,7 @@ void augment(string midi, string text, string out) {
 		events = ({({0, 255, 3, "Lyrics"})}) + events + ({({0, 255, 0x2F, ""})});
 		sscanf(chunks[0][1], "%2c%2c%2c", int typ, int trks, int timing);
 		chunks[0][1] = sprintf("%2c%2c%2c", typ, trks + 1, timing);
-		Stdio.write_file(out, midilib->buildsmf(chunks + ({({"MTrk", events})})));
+		Stdio.write_file(out, midi = midilib->buildsmf(chunks + ({({"MTrk", events})})));
 		//Stdio.write_file(out, midilib->buildsmf(({chunks[0]}) + ({({"MTrk", events})}) + chunks[1..]));
 		werror("Saved to %s\n", out);
 	}
@@ -238,6 +243,15 @@ void augment(string midi, string text, string out) {
 		int excess_notes = 0;
 		while (nextpos()) ++excess_notes;
 		if (excess_notes) werror("\x1b[1;34m-- %d notes without lyrics --\x1b[0m\n", excess_notes);
+	}
+	if (compare) {
+		//TODO: Merge in the effect of midichannelreduce rather than calling on it
+		//The --merge hack in there would only be needed here.
+		object mcr = (object)"../../shed/midichannelreduce.pike";
+		all_active_tracks[1] = 1; //Always take the conductor track
+		string data = mcr->reduce(midi, all_active_tracks, (<>), 1, 1);
+		mapping rc = Process.run(({"midi2ly", "--duration-quant=16", "--start-quant=16", "-o", "compare.ly", "/dev/stdin"}), (["stdin": data]));
+		Process.run(({"lilypond", "compare.ly"}), (["stdin": rc->stdout]));
 	}
 }
 
@@ -294,7 +308,7 @@ int main(int argc, array(string) argv) {
 			[int event, int cookie, string path] = __ARGS__;
 			if (!files[path]) return;
 			[string midi, string out] = files[path];
-			augment(midi, path, out);
+			augment(midi, path, out, args->compare);
 		};
 		return -1;
 	}
