@@ -282,7 +282,7 @@ int main(int argc, array(string) argv) {
 			else werror("\x1b[1;34m-- multiple matching MIDI files --\x1b[0m\n");
 		}
 		files[fn] = ({midi, out});
-		augment(midi, fn, out);
+		augment(midi, fn, out, args->compare);
 	}
 	if (args->copy) {
 		//Copy in files from the mididir to the outdir if there's no corresponding output file
