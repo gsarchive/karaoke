@@ -195,10 +195,10 @@ void augment(string midi, string text, string out, int(1bit)|void compare) {
 					//To expand it to work more flexibly, we'd need to recreate the nextpos() logic, but
 					//without actually advancing next[] in any track.
 					if (sizeof(allbut)) {
-						if (!singletrack) error("{bar<} usage only valid in singletrack mode for now");
+						if (!singletrack) error("{bar<} usage only valid in singletrack mode for now\n");
 						//Quick check: If we were to skip to the start of that bar, would we run past
 						//the end of this track?
-						if (bar_starts[bar] >= tracknotes[singletrack][stop[singletrack] - 1]) error("Can't skip to that bar");
+						if (bar_starts[bar] >= tracknotes[singletrack][stop[singletrack] - 1]) error("Can't skip to that bar\n");
 						//Okay. So now we scan to that point, retaining the last N positions.
 						int n = next[singletrack];
 						array pos = ({ });
