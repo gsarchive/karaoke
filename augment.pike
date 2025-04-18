@@ -198,7 +198,8 @@ void augment(string midi, string text, string out, int(1bit)|void compare) {
 						if (!singletrack) error("{bar<} usage only valid in singletrack mode for now\n");
 						//Quick check: If we were to skip to the start of that bar, would we run past
 						//the end of this track?
-						if (bar_starts[bar] >= tracknotes[singletrack][stop[singletrack] - 1]) error("Can't skip to that bar\n");
+						if (bar_starts[bar] >= tracknotes[singletrack][stop[singletrack] - 1])
+							error("Can't skip to bar %d\n", bar);
 						//Okay. So now we scan to that point, retaining the last N positions.
 						int n = next[singletrack];
 						array pos = ({ });
